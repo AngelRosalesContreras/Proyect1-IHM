@@ -1,9 +1,17 @@
 package com.example.clasificadorobjetos
 
+import android.app.Activity
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -50,17 +58,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import androidx.leanback.widget.Row
 import com.example.clasificadorobjetos.ui.theme.ClasificadorObjetosTheme
+import com.example.clasificadorobjetos.ui.theme.fontFamily1
+import com.example.clasificadorobjetos.ui.theme.fontFamily2
+import com.example.clasificadorobjetos.ui.theme.fontFamily3
+import com.example.clasificadorobjetos.ui.theme.fontFamily4
+import com.example.clasificadorobjetos.ui.theme.foutFamily
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -107,7 +125,7 @@ fun TopBar(onMenuClick: () -> Unit) {
             containerColor = Color(0xFFFFD700) // Fondo amarillo
         ),
         title = {
-            Text(text = "Clasificador", color = Color.Black, fontSize = 22.sp)
+            Text(text = "Clasificador de Objetos", color = Color.Black, fontSize = 22.sp, fontFamily = foutFamily)
         },
         navigationIcon = {
             IconButton(onClick = { onMenuClick() }) {
@@ -123,6 +141,31 @@ fun TopBar(onMenuClick: () -> Unit) {
 
 @Composable
 fun ScrollContent(innerPadding: PaddingValues) {
+    // Estado para la imagen y el texto
+    var imageRes by remember { mutableStateOf(R.drawable.img_3) } //Imagen Inicial
+    //var text by remember { mutableStateOf(" ") }         //Texto Inicial
+
+    var imageUri by remember { mutableStateOf<Uri?>(null) } // Imagen inicial como URI
+    var text by remember { mutableStateOf(" ") } // Texto inicial
+
+    // Guardamos los valores iniciales para poder restablecerlos
+    val initialImageRes = R.drawable.img_3
+    val initialText = " "
+
+    val context = LocalContext.current
+    val launcherGallery = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri: Uri? -> imageUri = uri }
+    )
+
+    val launcherCamera = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview(),
+        onResult = { bitmap ->
+            // Convertimos el bitmap a un URI temporal si es necesario o manejamos el bitmap directamente
+            imageUri = bitmap?.let { saveBitmapToUri(context, it) }
+        }
+    )
+
     Column(
         // Modificadores de estilo de la columna
         modifier = Modifier
@@ -135,15 +178,44 @@ fun ScrollContent(innerPadding: PaddingValues) {
         ImageSection(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Esto asegura que ocupe la mitad de la pantalla verticalmente
+                .weight(1f), // Esto asegura que ocupe la mitad de la pantalla verticalmente
+            imageUri = imageUri
         )
         PredictionSection(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // Esto asegura que ocupe la otra mitad de la pantalla verticalmente
+                .weight(1f), // Esto asegura que ocupe la otra mitad de la pantalla verticalmente
+            text = text, // Pasamos el estado del texto
+            onClassifyClick = {
+                //imageRes = R.drawable.se // Cambia la imagen al hacer clic
+                text = "CPU" // Cambia el texto al hacer clic
+            },
+            onClearClick = {
+                //imageRes = initialImageRes // Restablece la imagen inicial
+                imageUri = null // Restablece la imagen a null
+                text = initialText // Restablece el texto inicial
+            },
+            onGalleryClick = {
+                launcherGallery.launch("image/*")// Abre la galería
+
+            },
+            onCameraClick = {
+                launcherCamera.launch() // Abre la cámara
+            }
+
         )
 
     }
+}
+
+// Función auxiliar para guardar el bitmap en un URI temporal
+fun saveBitmapToUri(context: Context, bitmap: Bitmap): Uri {
+    val file = File(context.cacheDir, "${System.currentTimeMillis()}.jpg")
+    val outputStream = FileOutputStream(file)
+    bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+    outputStream.flush()
+    outputStream.close()
+    return file.toUri()
 }
 
 @Composable
@@ -181,7 +253,12 @@ fun DrawerContent() {
                     )
                 }
 
-                Text(text = "Como Usar", fontSize = 18.sp, modifier = Modifier.padding(8.dp))
+                Text(
+                    text = "Como Usar",
+                    fontSize = 18.sp,
+                    modifier = Modifier.padding(8.dp),
+                    fontFamily = fontFamily1
+                )
             }
 
             Row(
@@ -189,14 +266,20 @@ fun DrawerContent() {
                 modifier = Modifier.padding(vertical = 8.dp)
             ){
                 Column {
-                    Text(text = "Usar tema del",
+                    Text(
+                        text = "Usar tema del",
                         fontSize = 18.sp,
                         modifier = Modifier
-                            .padding(8.dp))
-                    Text(text = "sistema",
+                            .padding(8.dp),
+                        fontFamily = fontFamily1
+                    )
+                    Text(
+                        text = "sistema",
                         fontSize = 18.sp,
                         modifier = Modifier
-                            .padding(8.dp))
+                            .padding(8.dp),
+                        fontFamily = fontFamily1
+                    )
                 }
 
                 Switch(
@@ -214,7 +297,13 @@ fun DrawerContent() {
             }
 
             Row{
-                Text(text = "Modo oscuro", fontSize = 18.sp, modifier = Modifier.padding(8.dp))
+                Text(
+                    text = "Modo oscuro",
+                    fontSize = 18.sp,
+                    modifier = Modifier
+                        .padding(8.dp),
+                    fontFamily = fontFamily1
+                )
 
                 Switch(
                     checked = isSwitch2Checked,
@@ -234,20 +323,30 @@ fun DrawerContent() {
 
         // Botón en la parte inferior
         Button(
-            onClick = { /* Acción del botón */ },
+            onClick = {
+
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(8.dp)
                 .align(Alignment.CenterHorizontally),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
         ) {
-            Text("Salir",  color = Color.White)
+            Text(
+                "Salir",
+                color = Color.White,
+                fontFamily = fontFamily2,
+                fontSize = 24.sp
+            )
         }
     }
 }
 
 @Composable
-fun ImageSection(modifier: Modifier = Modifier) {
+fun ImageSection(
+    modifier: Modifier = Modifier,
+    imageUri: Uri? // Cambia aquí a Uri en lugar de Int
+) {
     Box(
         modifier = Modifier
             .padding(16.dp)
@@ -259,8 +358,38 @@ fun ImageSection(modifier: Modifier = Modifier) {
         ,
         contentAlignment = Alignment.Center
     ) {
+        // Verifica si hay un URI de imagen disponible
+        if (imageUri != null) {
+            // Muestra la imagen utilizando la URI
+            val bitmap = BitmapFactory.decodeStream(LocalContext.current.contentResolver.openInputStream(imageUri))
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop, // Para que la imagen se ajuste bien
+                modifier = Modifier
+                    .size(250.dp) // Ajusta el tamaño de la imagen si es necesario
+                    .clip(RoundedCornerShape(20.dp)) // Asegúrate de que la imagen también tenga bordes redondeados
+                    .shadow(8.dp, RoundedCornerShape(20.dp)) // Añade la sombra
+            )
+        } else {
+            // Muestra una imagen por defecto o un placeholder si no hay URI
+            Image(
+                painter = painterResource(
+                    id = R.drawable.img_3
+                ),
+                contentDescription = null,
+                contentScale = ContentScale.Crop, // Para que la imagen se ajuste bien
+                modifier = Modifier
+                    .size(250.dp) // Ajusta el tamaño de la imagen si es necesario
+                    .clip(RoundedCornerShape(20.dp)) // Asegúrate de que la imagen también tenga bordes redondeados
+                    .shadow(8.dp, RoundedCornerShape(20.dp)) // Añade la sombra
+            )
+        }
+        /*
         Image(
-            painter = painterResource(id = R.drawable.se), // Reemplaza con el nombre de tu imagen
+            painter = painterResource(
+                id = imageUri
+            ), // Reemplaza con el nombre de tu imagen
             contentDescription = "Imagen de ejemplo",
             contentScale = ContentScale.Crop, // Para que la imagen se ajuste bien
             modifier = Modifier
@@ -268,27 +397,52 @@ fun ImageSection(modifier: Modifier = Modifier) {
                 .clip(RoundedCornerShape(20.dp)) // Asegúrate de que la imagen también tenga bordes redondeados
                 .shadow(8.dp, RoundedCornerShape(20.dp)) // Añade la sombra
 
-        )
+        )*/
     }
 }
 
 
 
 @Composable
-fun PredictionSection(modifier: Modifier = Modifier) {
+fun PredictionSection(
+    modifier: Modifier = Modifier,
+    text: String, // Recibe el texto como parámetro
+    onClassifyClick: () -> Unit, // Callback para manejar el clic en el botón
+    onClearClick: () -> Unit, // Callback para manejar el clic en el botón "Limpiar"
+    onGalleryClick: () -> Unit,
+    onCameraClick: () -> Unit,
+) {
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxSize()
             .background(
                 Color(0xFFFFD700),
-                shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
+                shape = RoundedCornerShape(
+                    topStart = 30.dp,
+                    topEnd = 30.dp
+                )
             )
             .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = "Predicción", fontSize = 24.sp, color = Color.Black)
+        Text(
+            text = "Clasificación:",
+            fontSize = 20.sp,
+            color = Color.Black,
+            modifier = Modifier
+                .align(Alignment.Start),
+            fontFamily = fontFamily4
+        )
+
+        Text(
+            text = text,
+            fontSize = 24.sp,
+            color = Color.Black,
+            fontFamily = fontFamily3
+        )
 
         Row(
             modifier = Modifier
@@ -300,21 +454,27 @@ fun PredictionSection(modifier: Modifier = Modifier) {
             ImageButtonWithText(
                 imageRes = R.drawable.img, // Reemplaza con el recurso de imagen correcto
                 description = "Cámara",
-                onClick = { /* Acción para abrir cámara */ }
+                onClick = {
+                    onCameraClick()
+                }
             )
 
             // Botón con imagen y texto para abrir la galería
             ImageButtonWithText(
                 imageRes = R.drawable.img_1, // Reemplaza con el recurso de imagen correcto
                 description = "Galería",
-                onClick = { /* Acción para abrir galería */ }
+                onClick = {
+                    onGalleryClick()
+                }
             )
 
             // Botón con imagen y texto para limpiar la imagen
             ImageButtonWithText(
                 imageRes = R.drawable.img_2, // Reemplaza con el recurso de imagen correcto
                 description = "Limpiar",
-                onClick = { /* Acción para limpiar imagen */ }
+                onClick = {
+                    onClearClick()
+                }
             )
         }
 
@@ -322,13 +482,19 @@ fun PredictionSection(modifier: Modifier = Modifier) {
 
 
         Button(
-            onClick = { /* Acción para clasificar imagen */ },
+            onClick = { onClassifyClick()
+                },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = Color.Black)
         ) {
-            Text(text = "Limpiar", color = Color.White)
+            Text(
+                text = "Clasificar Imagen",
+                color = Color.White,
+                fontFamily = fontFamily2,
+                fontSize = 26.sp
+            )
         }
 
     }
@@ -355,7 +521,7 @@ fun ImageButtonWithText(imageRes: Int, description: String, onClick: () -> Unit)
         // Texto debajo de la imagen
         Text(
             text = description,
-            style = TextStyle(fontSize = 14.sp, color = Color.Black)
+            style = TextStyle(fontSize = 20.sp, color = Color.Black, fontFamily = fontFamily1)
         )
     }
 }
