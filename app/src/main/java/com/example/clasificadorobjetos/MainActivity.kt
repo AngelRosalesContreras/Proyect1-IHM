@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,8 +29,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -100,10 +103,13 @@ fun PantallaPrincipal() {
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    var showTutorial by remember { mutableStateOf(false) }  // Estado para el tutorial
+
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            DrawerContent()
+            DrawerContent(onInfoClick = { showTutorial = true })
         }
     ) {
         Scaffold(
@@ -112,7 +118,22 @@ fun PantallaPrincipal() {
 
 
             ) { innerPadding ->
-            ScrollContent(innerPadding)
+
+            // Usamos Box para superponer el contenido y el tutorial
+            Box(modifier = Modifier.fillMaxSize()) {
+
+                // Contenido principal
+                ScrollContent(innerPadding)
+
+                // Muestra el tutorial cuando showTutorial es true
+                if (showTutorial) {
+                    // Asegurarse de que TutorialScreen llene toda la pantalla
+                    TutorialScreen(
+                        onBackClick = { showTutorial = false },
+                        modifier = Modifier.fillMaxSize()  // Este es el modificador importante
+                    )
+                }
+            }
         }
     }
 }
@@ -219,7 +240,7 @@ fun saveBitmapToUri(context: Context, bitmap: Bitmap): Uri {
 }
 
 @Composable
-fun DrawerContent() {
+fun DrawerContent(onInfoClick: () -> Unit) {
 
     // Obtener el ancho de la pantalla
     val screenWidth = LocalConfiguration.current.screenWidthDp.dp
@@ -227,6 +248,7 @@ fun DrawerContent() {
     // Estado de los switches
     var isSwitch1Checked by remember { mutableStateOf(false) }
     var isSwitch2Checked by remember { mutableStateOf(false) }
+
 
     // Menú con 3 opciones en la parte superior y 1 botón en la parte inferior
     Column(
@@ -245,7 +267,9 @@ fun DrawerContent() {
             Row{
                 Spacer(modifier = Modifier.height(16.dp))
 
-                IconButton(onClick = {  }) {
+                IconButton(onClick = {
+                    onInfoClick()
+                }) {
                     Icon(
                         imageVector = Icons.Filled.Info ,
                         contentDescription = "Abrir Menu",
@@ -341,6 +365,145 @@ fun DrawerContent() {
         }
     }
 }
+
+@Composable
+fun TutorialScreen(onBackClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .background(Color.Gray)  // Solo para visualizar
+            .fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Contenido de la imagen
+            val currentIndex = remember { mutableStateOf(0) }  // Estado para la imagen actual
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            // Imagen grande en la parte superior
+            Image(
+                painter = painterResource(id = getTutorialImageRes(currentIndex.value)),
+                contentDescription = "Instructivo Imagen ${currentIndex.value}",
+                modifier = Modifier
+                    .weight(1f)  // Toma el espacio disponible
+                    .fillMaxWidth()  // Asegúrate de que ocupe todo el ancho
+                    .clip(RoundedCornerShape(16.dp))
+                    .border(2.dp, Color.Black, RoundedCornerShape(16.dp))
+                    .align(Alignment.CenterHorizontally)
+            )
+
+            // Riel de imágenes
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(7) { index ->
+                    Image(
+                        painter = painterResource(id = getTutorialImageRes(index)),
+                        contentDescription = "Instructivo Imagen $index",
+                        modifier = Modifier
+                            .size(80.dp)  // Tamaño más pequeño para las imágenes del riel
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(2.dp, Color.Black, RoundedCornerShape(8.dp))
+                            .clickable {
+                                currentIndex.value = index  // Cambia la imagen actual al hacer clic
+                            }
+                    )
+                }
+            }
+
+            // Botón para regresar
+            Button(
+                onClick = onBackClick,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            ) {
+                Text(
+                    "Regresar",
+                    color = Color.White,
+                    fontFamily = fontFamily2,
+                    fontSize = 24.sp
+                )
+            }
+        }
+    }
+}
+
+
+//@Composable
+//fun TutorialScreen(onBackClick: () -> Unit, modifier: Modifier = Modifier) {
+//    Column(
+//        // Modificadores de estilo de la columna
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(color = Color.White),
+//        horizontalAlignment = Alignment.CenterHorizontally,
+//        verticalArrangement = Arrangement.SpaceBetween
+//    ) {
+//
+//        Spacer(modifier = Modifier.height(16.dp))
+//
+//        // Riel de imágenes
+//        LazyRow(
+//            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+//            horizontalArrangement = Arrangement.spacedBy(8.dp)
+//        ) {
+//            items(7) { index ->
+//                Image(
+//                    painter = painterResource(id = getTutorialImageRes(index)),
+//                    contentDescription = "Instructivo Imagen $index",
+//                    modifier = Modifier
+//                        .size(400.dp)
+//                        .clip(RoundedCornerShape(16.dp))
+//                        .border(2.dp, Color.Black, RoundedCornerShape(16.dp))
+//                )
+//            }
+//        }
+//
+//        // Botón de volver
+//        Row{
+//            Spacer(modifier = Modifier.height(16.dp))
+//
+//            IconButton(onClick = {
+//                onBackClick()
+//            }) {
+//                Icon(
+//                    imageVector = Icons.Filled.ArrowBack ,
+//                    contentDescription = "Abrir Menu",
+//                    tint = Color.Black
+//                )
+//            }
+//
+//            Text(
+//                text = "Volver",
+//                fontSize = 18.sp,
+//                modifier = Modifier.padding(8.dp),
+//                fontFamily = fontFamily1,
+//                color = Color.Black
+//            )
+//        }
+//    }
+//}
+
+// Función que devuelve el recurso de la imagen del tutorial correspondiente
+fun getTutorialImageRes(index: Int): Int {
+    return when (index) {
+        0 -> R.drawable.image1
+        1 -> R.drawable.image2
+        2 -> R.drawable.image3
+        3 -> R.drawable.image4
+        4 -> R.drawable.image5
+        5 -> R.drawable.image6
+        6 -> R.drawable.image7
+        else -> R.drawable.se // Imagen de reserva
+    }
+}
+
 
 @Composable
 fun ImageSection(
